@@ -13,10 +13,12 @@
 #import <SystemConfiguration/SystemConfiguration.h>
 #include<unistd.h>
 #include<netdb.h>
+#include "Movie.h"
+#import "MovieAPIManager.h"
 
 @interface MoviesViewController () <UITableViewDataSource, UITableViewDelegate>
 
-@property (nonatomic, strong) NSArray *movieArray;
+@property (nonatomic, strong) NSMutableArray *movieArray;
 
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *loadingIndicator;
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
@@ -77,31 +79,13 @@
 }
 
 - (void) fetchMovies {
-    NSURL *url = [NSURL URLWithString:@"https://api.themoviedb.org/3/movie/now_playing?api_key=a07e22bc18f5cb106bfe4cc1f83ad8ed"];
-     NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10.0];
-     NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:nil delegateQueue:[NSOperationQueue mainQueue]];
-     NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (error != nil) {
-                NSLog(@"%@", [error localizedDescription]);
-            }
-            else {
-                NSDictionary *dataDictionary = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
-                NSLog(@"%@", dataDictionary);
-                //gets the array of movies
-                self.movieArray = dataDictionary[@"results"];
-                
-                for(NSDictionary *movies in self.movieArray)
-                {
-                    NSLog(@"%@", movies[@"title"]);
-                }
-                //reloads the table data, to ensure that the rows are populated.
-                [self.tableView reloadData];
-            }
+     // new is an alternative syntax to calling alloc init.
+     MovieAPIManager *manager = [MovieAPIManager new];
+     [manager fetchNowPlaying:^(NSArray *movies, NSError *error) {
+         self.movieArray =(NSMutableArray*) movies;
+         [self.tableView reloadData];
          [self.loadingIndicator stopAnimating];
-         //stops the refresh animation
-         [self.refreshControl endRefreshing];
-        }];
-     [task resume];
+     }];
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
     return self.movieArray.count;
@@ -115,13 +99,14 @@
     //colors the cell
     cell.backgroundColor = [UIColor darkGrayColor];
     //storing the current movie inside of the row (based on the movies position in the movie dict)
-    NSDictionary *curr_movie = self.movieArray[indexPath.row];
-    cell.titleLabel.text = curr_movie[@"title"];
-    cell.descriptionLabel.text = curr_movie[@"overview"];
+    
+    Movie *curr_movie = self.movieArray[indexPath.row];
+    cell.titleLabel.text = curr_movie.title;
+    cell.descriptionLabel.text = curr_movie.descriptionLabel;
     
     //gets the poster path
     NSString *baseURLString = @"https://image.tmdb.org/t/p/w500";
-    NSString *posterURLString = curr_movie[@"poster_path"];
+    NSString *posterURLString = curr_movie.posterUrl;
     NSString *fullPosterPathURLString = [baseURLString stringByAppendingFormat:@"%@", posterURLString];
     
     NSURL *posterURLPath = [NSURL URLWithString:fullPosterPathURLString];
@@ -141,8 +126,7 @@
     NSLog(@"Tapping on a movie.");
     UITableViewCell *tappedCell = sender;
     NSIndexPath *indexPath = [self.tableView indexPathForCell:tappedCell];
-    NSDictionary *movie = self.movieArray[indexPath.row];
-    
+    Movie *movie = self.movieArray[indexPath.row];
     DetailsViewController *detailViewController = [segue destinationViewController];
     
     detailViewController.movie = movie;
