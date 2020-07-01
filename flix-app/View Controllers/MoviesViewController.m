@@ -28,7 +28,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self.loadingIndicator startAnimating];
-    
+    self.tableView.rowHeight = UITableViewAutomaticDimension;	
     
     
     self.tableView.dataSource = self;
